@@ -1,0 +1,149 @@
+---
+title: "Duolingo SLAM dta"
+author: '[Matthew Walsh]'
+dte: January 2020
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+# Setup
+
+Load libraries, source scripts, set directories
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyr)
+library(tidyverse)
+library(RColorBrewer)
+library(patchwork)
+library(dplyr)
+library(data.table)
+library(parallel)
+
+util.dir <- './utilities'
+print(list.files(util.dir))
+sapply(file.path(util.dir, list.files(util.dir)), source)
+
+df <- read_csv("./data/subset_SLAM_data.csv")
+
+df <- df %>%
+  mutate(time_diff = ifelse(repetition == 1, 1000, time_diff),
+         lag       = time_diff,
+         first     = 0)
+
+df.first <- filter(df, repetition == 1) %>%
+  mutate(time        = time - 1000,
+         repetition  = 0,
+         time_diff   = NA,
+         lag         = NA,
+         performance = NA,
+         first       = 1)
+
+df <- bind_rows(df.first, df) %>%
+  arrange(user_id, stimulus_id, repetition) %>%
+  mutate(repetition = repetition + 1)
+
+df <- setDT(df)
+
+# Calc model stability
+df[ , stability := get_stability(time),
+    by = c("user_id", "stimulus_id")]
+
+# Calc model time
+x <- 0.6
+df[ , model.time := get_model_time(time, x),
+    by = c("user_id", "stimulus_id")]
+
+# Calc score
+df[ , score := ifelse(repetition > 1, performance, NA_integer_)]
+df[ , performance_num := as.numeric(performance)]
+write.csv(df, "./data/ppe_SLAM_data.csv", row.names = FALSE)
+```
+
+# Fit
+
+Format the data for analysis
+
+```{r fit_model, message=FALSE, warning=FALSE}
+## 3. Model fits (language by format)
+## 3.1 Fit
+params <- list(b = 0, m = .1, tau.1 = .4, tau.2 = .4, tau.3 = .4, s = .2)
+
+mp <- mclapply(unique(df$language),
+             function(x) {
+               output <- fit_ppe_vary_tau(filter(df, language == x), params, 'log_likelihood')
+               output$language <- x
+               return(output)
+             }
+             )
+
+mp <- bind_rows(mp)
+```
+
+# Plot learning
+
+Plot the results
+
+```{r message=FALSE, warning=FALSE, fig.width = 5, fig.height = 4}
+df.pred <- left_join(df, mp, by = 'language') %>%
+  mutate(tau = case_when(format == 'Listen'    ~ tau.1,
+                         format == 'Select'    ~ tau.2,
+                         format == 'Translate' ~ tau.3),
+         ppe_pred_format = pred.ppe.tau(tau, repetition, model.time, b, m, stability, s),
+         repetition = repetition - 1)
+
+## 3.3 Plot learning
+perf_avg <- df.pred %>%
+  mutate(repetition = ifelse(repetition >= 20, 20, repetition)) %>%
+  group_by(user_id, language, repetition, format) %>%
+  summarise(Observed = mean(performance),
+            Model  = mean(ppe_pred_format)) %>%
+  group_by(language, repetition, format) %>%
+  summarise(se = sqrt(var(Observed)/n()),
+            Observed = mean(Observed),
+            se.predict = sqrt(var(Model)/n()),
+            Model = mean(Model))
+
+perf_avg <- gather(perf_avg %>% select(language, repetition, format, Observed, Model), key = 'Outcome', value = 'Accuracy', c('Observed', 'Model'))
+p1 <- lapply(c('Listen', 'Select', 'Translate'),
+             function(x) plot.learning(x, perf_avg))
+             
+p1 <- p1[[1]] / p1[[2]] / p1[[3]] + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+p1
+
+```
+
+# Plot forgetting
+
+Plot the results
+
+```{r message=FALSE, warning=FALSE, fig.width = 5, fig.height = 4}
+df.pred$lag_cat <- factor(df$lag_cat, levels = c('0 to 90 sec', '90 sec to 1 hr', '1 hr to 1 day', '1 to 2 days', '2 to 3 days', '>3 days', 'First rep'))
+
+ret_avg <- df.pred %>%
+  filter(repetition > 1) %>%
+  group_by(user_id, language, lag_cat, format) %>%
+  summarise(Observed = mean(performance, na.rm = TRUE),
+            Model  = mean(ppe_pred_format)) %>%
+  group_by(language, lag_cat, format) %>%
+  summarise(se = sqrt(var(Observed)/n()),
+            Observed = mean(Observed),
+            se.predict = sqrt(var(Model)/n()),
+            Model = mean(Model)) %>%
+  mutate(x.val = as.numeric(lag_cat))
+
+ret_avg <- gather(ret_avg %>% select(language, lag_cat, x.val, format, Observed, Model), key = 'Outcome', value = 'Accuracy', c('Observed', 'Model'))
+
+p2 <- lapply(c('Listen', 'Select', 'Translate'),
+             function(x) plot.retention(x, ret_avg))
+
+p2 <- p2[[1]] / p2[[2]] / p2[[3]]  + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+p2
+```

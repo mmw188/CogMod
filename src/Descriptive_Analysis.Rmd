@@ -1,0 +1,141 @@
+---
+title: "Duolingo SLAM dta"
+author: '[Matthew Walsh]'
+dte: January 2020
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+# Setup
+
+Load libraries, source scripts, set directories
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(RColorBrewer)
+library(patchwork)
+library(dplyr)
+
+source('./utilities/descriptive_funs.R')
+
+df <- read_csv("./data/clean_SLAM_small.csv")
+```
+
+# Format
+
+Format the data for analysis
+
+```{r prep_data, message=FALSE, warning=FALSE}
+df <- df %>%
+  group_by(user_id, stimulus_id) %>%
+  mutate(repetition = 1:n(),
+         lag = time - lag(time, 1)) %>%
+  ungroup() %>%
+  mutate(language = case_when(language == 'es_en' ~ 'Spanish learning English',
+                              language == 'en_es' ~ 'Enlish learning Spanish',
+                              TRUE ~ 'French learning English'),
+         lag_cat = case_when(lag <= 90               ~ '0 to 90 sec',
+                             lag <= 60*60            ~ '90 sec to 1 hr',
+                             lag <= 60 * 60 * 24     ~ '1 hr to 1 day',
+                             lag <= 60 * 60 * 24 * 2 ~ '1 to 2 days',
+                             lag <= 60 * 60 * 24 * 3 ~ '2 to 3 days',
+                             lag <= 1E7              ~ '>3 days',
+                             is.na(lag)              ~ 'First rep'),
+         format = case_when(format == 'listen'            ~ 'Listen',
+                            format == 'reverse_tap'       ~ 'Select',
+                            format == 'reverse_translate' ~ 'Translate'))
+
+df$lag_cat <- factor(df$lag_cat, levels = c('0 to 90 sec', '90 sec to 1 hr', '1 hr to 1 day', '1 to 2 days', '2 to 3 days', '>3 days', 'First rep'))
+```
+
+## Accuracy by repetition
+
+```{r message=FALSE, warning=FALSE, fig.width = 5, fig.height = 4}
+max_reps <- 20
+
+plot.rep <- df %>%
+  mutate(repetition = ifelse(repetition >= max_reps, max_reps, repetition)) %>%
+  group_by(user_id, language, repetition, format) %>%
+  summarise(accuracy = mean(performance)) %>%
+  group_by(language, repetition, format) %>%
+  summarise(se = sqrt(var(accuracy)/n()),
+            accuracy = mean(accuracy))
+
+p1 <- lapply(c('Listen', 'Select', 'Translate'),
+             function(x) plot.rep.acc(plot.rep, x))
+     
+p1 <- p1[[1]] / p1[[2]] / p1[[3]] + plot_layout(guides = "collect") & theme(legend.position = 'bottom', legend.direction = 'horizontal')
+p1
+```
+
+## Accuracy by lag
+
+```{r message=FALSE, warning=FALSE, fig.width = 5, fig.height = 4}
+plot.lag <- df %>%
+  filter(repetition > 1) %>%
+  group_by(user_id, language, lag_cat, format) %>%
+  summarise(accuracy = mean(performance, na.rm = TRUE)) %>%
+  group_by(language, lag_cat, format) %>%
+  summarise(se = sqrt(var(accuracy, na.rm = TRUE)/n()),
+            accuracy = mean(accuracy, na.rm = TRUE)) %>%
+  mutate(x.val = as.numeric(lag_cat)-1)
+
+p2 <- lapply(c('Listen', 'Select', 'Translate'),
+             function(x) plot.lag.acc(plot.lag, x))
+     
+p2 <- p2[[1]] / p2[[2]] / p2[[3]] + plot_layout(guides = "collect") & theme(legend.position = 'bottom', legend.direction = 'horizontal')
+p2
+```
+
+# Regression
+
+Do regression
+
+```{r message=FALSE, warning=FALSE, fig.width = 5, fig.height = 4}
+
+# Exclude stimuli with fewer than 3 repetitions, and individuals with fewer than 3 stimuli
+reg.df <- df %>%
+  group_by(user_id, language, stimulus_id) %>%
+  mutate(max_rep = n()) %>%
+  ungroup() %>%
+  filter(max_rep >= 3) %>%
+  group_by(user_id, language) %>%
+  mutate(n_stimuli = length(unique(stimulus_id))) %>%
+  ungroup() %>%
+  filter(n_stimuli >= 3) %>%
+  group_by(user_id) %>%
+  mutate(n_lang = length(unique(language))) %>%
+  filter(n_lang == 1) %>%
+  ungroup()
+
+write.csv(reg.df, "./data/subset_SLAM_data.csv", row.names = FALSE)
+
+# Include additional analysis variables
+reg.df <- reg.df %>%
+  mutate_if(is.character, as.factor) %>%
+  mutate(first            = as.integer(repetition == 1),
+         fit_lag          = as.numeric(first == 0),
+         history_seen_log = ifelse(first != 1, log(repetition), 0),
+         lag_log          = ifelse(first != 1, log(time_diff), 0))
+
+# Conduct GLM
+glm_fixed <- glm(performance ~ 
+                   first + 
+                   lag_log : fit_lag +
+                   history_seen_log +
+                   language +
+                   format,
+                 data = reg.df,
+                 family = binomial)
+
+# Plot coefficients
+plot.reg(glm_fixed)
+```
