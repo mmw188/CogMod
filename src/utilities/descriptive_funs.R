@@ -7,7 +7,7 @@ plot.lag.acc <- function(df, resp.form){
     geom_line() +
     geom_point() +
     scale_x_continuous(name = 'Delay', limits = c(0, 5), breaks = 0:5, labels = unique(df$lag_cat)) +
-    scale_y_continuous(name = 'Accuracy (%)', limits = c(.6, 1), breaks = c(.6, .7, .8, .9, 1), labels = scales::percent) +
+    scale_y_continuous(name = 'Accuracy (%)', limits = c(.5, 1), breaks = c(.5, .6, .7, .8, .9, 1), labels = scales::percent) +
     ggtitle(resp.form) +
     scale_color_brewer(palette = 'Set1') +
     scale_fill_brewer(palette = 'Set1') +
@@ -36,7 +36,7 @@ plot.rep.acc <- function(df, resp.form){
     geom_line() +
     geom_point() +
     scale_x_continuous(name = 'Repetition', limits = c(0, 20), breaks = c(0, 5, 10, 15, 20), labels = c('0', '5', '10', '15', '20+')) +
-    scale_y_continuous(name = 'Accuracy (%)', limits = c(.6, 1), breaks = c(.6, .7, .8, .9, 1.0), labels = scales::percent) +
+    scale_y_continuous(name = 'Accuracy (%)', limits = c(.5, 1), breaks = c(.5, .6, .7, .8, .9, 1.0), labels = scales::percent) +
     ggtitle(resp.form) +
     scale_color_brewer(palette = 'Set1') +
     scale_fill_brewer(palette = 'Set1') +
@@ -54,6 +54,19 @@ plot.rep.acc <- function(df, resp.form){
   }
   p
   
+}
+
+table.reg <- function(mod){
+  OR  <- exp(coef(mod))
+  CI  <- exp(confint.default(mod))
+  TRM <- rownames(CI)
+  
+  glm_fixed <- data.frame(Term = TRM,
+                          Estimate      = format(round(OR,      2), nsmall = 2),
+                          `Lower Bound` = format(round(CI[, 1], 2), nsmall = 2),
+                          `Upper Bound` = format(round(CI[, 2], 2), nsmall = 2))
+  
+  datatable(glm_fixed, rownames = FALSE, class = 'cell-border stripe', style = 'bootstrap', options = list(dom = 't'))
 }
 
 plot.reg <- function(glm_fixed){

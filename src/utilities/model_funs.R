@@ -13,7 +13,7 @@ plot.learning <- function(x, df){
     scale_linetype_manual("", values=c(1, 1, 1, 2, 2, 2)) +
     scale_color_manual("", values = c(cols[1], cols[2], cols[3], cols[1], cols[2], cols[3])) +
     scale_x_continuous(name = 'Repetition', limits = c(0, 20), breaks = c(0, 5, 10, 15, 20), labels = c('0', '5', '10', '15', '20+')) +
-    scale_y_continuous(name = 'Accuracy (%)', limits = c(.7, 1), breaks = c(.5, .6, .7, .8, .9, 1.0), labels = scales::percent) +
+    scale_y_continuous(name = 'Accuracy (%)', limits = c(.5, 1), breaks = c(.5, .6, .7, .8, .9, 1.0), labels = scales::percent) +
     guides(linetype = guide_legend(ncol=2)) +
     ggtitle(x) +
     theme_bw() +
@@ -48,7 +48,7 @@ plot.retention <- function(x, df){
     scale_linetype_manual("", values =c(1, 1, 1, 2, 2, 2)) +
     scale_color_manual("", values = c(cols[1], cols[2], cols[3], cols[1], cols[2], cols[3])) +
     scale_x_continuous(name = 'Elapsed Time Since Last Exposure to Word', limits = c(1, 6), breaks = 1:6, labels = unique(ret_avg$lags_cat)) +
-    scale_y_continuous(name = 'Accuracy (%)', limits = c(.7, 1), breaks = c(.5, .6, .7, .8, .9, 1), labels = scales::percent) +
+    scale_y_continuous(name = 'Accuracy (%)', limits = c(.5, 1), breaks = c(.5, .6, .7, .8, .9, 1), labels = scales::percent) +
     guides(linetype = guide_legend(ncol=2)) +
     ggtitle(x) +
     theme_bw() +

@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1662121061500.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3734245387",
+    "id" : "10F341C4",
+    "lastKnownWriteTime" : 1662118906,
+    "last_content_update" : 1662121233006,
+    "path" : "~/Desktop/RAND_Desktop/NonRAND/ExternalRepo/CogMod/src/Cognitive_Model.Rmd",
+    "project_path" : "src/Cognitive_Model.Rmd",
+    "properties" : {
+        "cursorPosition" : "37,14",
+        "scrollLine" : "33"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
