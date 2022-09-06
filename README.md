@@ -23,4 +23,4 @@ This work was developed in R version 3.6.3 and uses several packages installed f
 # 5.0 Citations
 Walsh, M. M., Gluck, K. A., Gunzelmann, G., Jastrzembski, T., & Krusmark, M. (2018). Evaluating the theoretic adequacy and applied potential of computational models of the spacing effect. Cognitive science, 42, 644-691.
 
-Settles, Burr, 2018, "Data for the 2018 Duolingo Shared Task on Second Language Acquisition Modeling (SLAM)", https://doi.org/10.7910/DVN/8SWHNO, Harvard Dataverse, V4 
+Settles, Burr, 2018, "Data for the 2018 Duolingo Shared Task on Second Language Acquisition Modeling (SLAM)", https://doi.org/10.7910/DVN/8SWHNO, Harvard Dataverse, V4. 
